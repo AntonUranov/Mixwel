@@ -1,4 +1,6 @@
-﻿namespace Mixwel.Domain.Models
+﻿using System.Runtime.CompilerServices;
+
+namespace Mixwel.Domain.Models
 {
     public class SearchFilters
     {
@@ -32,6 +34,24 @@
                 MinTimeLimit = minTimeLimit,
                 OnlyCached = onlyCached
             };
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsAppropriateDestinationTime(DateTime destinationTime)
+        {
+            return !DestinationDateTime.HasValue || destinationTime <= DestinationDateTime;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsAffordablePrice(decimal price) 
+        {
+            return !MaxPrice.HasValue || price <= MaxPrice;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsSuitableTimeLimit(DateTime limit) 
+        {
+            return !MinTimeLimit.HasValue || limit >= MinTimeLimit;
         }
     }
 }

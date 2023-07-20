@@ -1,6 +1,4 @@
-﻿using TestTask;
-
-namespace Mixwel.Domain.Models
+﻿namespace Mixwel.Domain.Models
 {
     public class SearchRequest
     {

@@ -2,27 +2,39 @@
 using System.IO;
 using System;
 using System.Net.Http;
-using TestTask;
+using Microsoft.Net.Http.Headers;
+using Mixwel.Domain.Interfaces;
 
 namespace Mixwel.Providers.ProviderOneSearch
 {
     public class ProviderOneSearchService : ISearchService
     {
         private const string SearchPath = "/api/v1/search";
-        private static Uri BaseAddress = new Uri("http://provider-one/");
+        private const string PingPath = "/api/v1/ping";
+        //private static Uri BaseAddress = new Uri("http://provider-one/");
+        private static Uri BaseAddress = new Uri("http://localhost:5089/");
         
         private readonly HttpClient _httpClient;
 
         public ProviderOneSearchService(HttpClient httpClient)
         {
             httpClient.BaseAddress = BaseAddress;
+            httpClient.DefaultRequestHeaders.Add(HeaderNames.Accept, "application/json");
 
             _httpClient = httpClient;
         }
 
-        public Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
+        public async Task<bool> IsAvailableAsync(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            try
+            {
+                HttpResponseMessage response = await _httpClient.GetAsync(PingPath);
+                return response.IsSuccessStatusCode;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         public async Task<Result<SearchResponse>> SearchAsync(SearchRequest request, CancellationToken cancellationToken)
@@ -37,12 +49,13 @@ namespace Mixwel.Providers.ProviderOneSearch
                         ProviderOneSearchResponse? apiResponse = await response.Content
                             .ReadFromJsonAsync<ProviderOneSearchResponse>(cancellationToken: cancellationToken);
 
-                        return Result.Ok(FromApiResponse(apiResponse));
+                        IEnumerable<ProviderOneRoute> apiRoutes = GetFilteredApiRoutes(apiResponse, request.Filters);
+                        return Result.Ok(ToSearchResponse(apiRoutes));
                     }
                     else
                     {
                         return Result.Fail<SearchResponse>(
-                            $"Failed response. Provider:{nameof(ProviderOneSearchService)}. Http code: {response.StatusCode}. Path:{SearchPath}");
+                            $"Failed response. Provider:{nameof(ProviderOneSearchService)}. Http code: {(int)response.StatusCode}. Path:{SearchPath}");
                     }
                 }
             }
@@ -53,6 +66,17 @@ namespace Mixwel.Providers.ProviderOneSearch
             }
         }
 
+        private static IEnumerable<ProviderOneRoute> GetFilteredApiRoutes(ProviderOneSearchResponse? apiResponse, SearchFilters? filters)
+        {
+            var routes = apiResponse?.Routes ?? Array.Empty<ProviderOneRoute>();
+            if(filters is null) return routes;
+
+            return routes
+                .Where(x => filters.IsAppropriateDestinationTime(x.DateTo))
+                .Where(x => filters.IsAffordablePrice(x.Price))
+                .Where(x => filters.IsSuitableTimeLimit(x.TimeLimit));
+        }
+
         private static ProviderOneSearchRequest ToApiRequest(SearchRequest searchRequest) 
         {
             return new ProviderOneSearchRequest
@@ -61,13 +85,13 @@ namespace Mixwel.Providers.ProviderOneSearch
                 To = searchRequest.Destination,
                 DateFrom = searchRequest.OriginDateTime,
                 DateTo = searchRequest.Filters?.DestinationDateTime,
-                MaxPrice = searchRequest.Filters?.MaxPrice
+                MaxPrice = searchRequest.Filters?.MaxPrice,
             };
         }
 
-        private static SearchResponse FromApiResponse(ProviderOneSearchResponse apiResponse) 
+        private static SearchResponse ToSearchResponse(IEnumerable<ProviderOneRoute> apiRoutes) 
         {
-            IEnumerable<Domain.Models.Route> routes = (apiResponse.Routes ?? Array.Empty<ProviderOneRoute>())
+            var routes = apiRoutes
                 .Select(x => Domain.Models.Route.Create(Guid.NewGuid(),
                     x.From,
                     x.To,

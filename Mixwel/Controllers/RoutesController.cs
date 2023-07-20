@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Mixwel.Domain.Interfaces;
 using Mixwel.Domain.Models;
 using Mixwel.Models;
-using TestTask;
 
 namespace Mixwel.Controllers
 {

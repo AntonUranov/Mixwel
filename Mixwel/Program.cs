@@ -1,6 +1,4 @@
 using Mixwel;
-using Mixwel.Providers.ProviderOneSearch;
-using TestTask;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
