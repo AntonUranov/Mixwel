@@ -2,7 +2,7 @@
 {
     public class Route
     {
-        private Route() { }
+        public Route() { }
 
         // Mandatory
         // Identifier of the whole route

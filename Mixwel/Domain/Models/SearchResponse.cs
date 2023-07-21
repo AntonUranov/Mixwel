@@ -24,9 +24,13 @@
         // The longest route
         public int MaxMinutesRoute { get; init; }
 
+        private static readonly SearchResponse Empty = new SearchResponse() { Routes = Enumerable.Empty<Route>() };
+
         public static SearchResponse Create(IEnumerable<Route> routes)
         {
             var items = routes ?? Enumerable.Empty<Route>();
+            if(!items.Any())
+                return Empty;
 
             return new SearchResponse
             {

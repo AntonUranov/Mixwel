@@ -9,6 +9,7 @@ builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
 // Add services to the container.
 builder.Services.RegisterDependencies();
+builder.Services.RegisterRedis(() => builder.Configuration.GetConnectionString("Redis"));
 
 builder.Services.ConfigureHttpClients();
 
@@ -16,7 +17,6 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-
 
 var app = builder.Build();
 

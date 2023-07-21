@@ -9,8 +9,8 @@ namespace Mixwel.Controllers
     [Route("[controller]")]
     public class RoutesController : ControllerBase
     {
-        private readonly ISearchService _searchService;
-        public RoutesController(ICompositeSearchService searchService)
+        private readonly IAggregateSearchService _searchService;
+        public RoutesController(IAggregateSearchService searchService)
         {
             _searchService = searchService;
         }
@@ -36,9 +36,13 @@ namespace Mixwel.Controllers
         }
 
         [HttpGet("{id}")]
-        public IActionResult GetById(Guid id, CancellationToken cancellationToken)
+        public async Task<ActionResult> GetById(Guid id)
         {
-            return Ok();
+            var result = await _searchService.GetById(id);
+            if (result is null)
+                return NotFound();
+
+            return Ok(result);
         }
 
         private static Result<SearchRequest> MapRequest(SearchRequestModel request)
