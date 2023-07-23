@@ -4,6 +4,7 @@ using System;
 using System.Net.Http;
 using Microsoft.Net.Http.Headers;
 using Mixwel.Domain.Interfaces;
+using Route = Mixwel.Domain.Models.Route;
 
 namespace Mixwel.Providers.ProviderOneSearch
 {
@@ -37,7 +38,7 @@ namespace Mixwel.Providers.ProviderOneSearch
             }
         }
 
-        public async Task<Result<SearchResponse>> SearchAsync(SearchRequest request, CancellationToken cancellationToken)
+        public async Task<Result<IEnumerable<Route>>> SearchAsync(SearchRequest request, CancellationToken cancellationToken)
         {
             ProviderOneSearchRequest apiRequest = ToApiRequest(request);
             try
@@ -50,11 +51,11 @@ namespace Mixwel.Providers.ProviderOneSearch
                             .ReadFromJsonAsync<ProviderOneSearchResponse>(cancellationToken: cancellationToken);
 
                         IEnumerable<ProviderOneRoute> apiRoutes = GetFilteredApiRoutes(apiResponse, request.Filters);
-                        return Result.Ok(ToSearchResponse(apiRoutes));
+                        return Result.Ok(ToRoutes(apiRoutes));
                     }
                     else
                     {
-                        return Result.Fail<SearchResponse>(
+                        return Result.Fail<IEnumerable<Route>>(
                             $"Failed response. Provider:{nameof(ProviderOneSearchService)}. Http code: {(int)response.StatusCode}. Path:{SearchPath}");
                     }
                 }
@@ -62,7 +63,7 @@ namespace Mixwel.Providers.ProviderOneSearch
             catch (Exception e)
             {
 
-                return Result.Fail<SearchResponse>($"Provider:{nameof(ProviderOneSearchService)}. Message:{e.Message}");
+                return Result.Fail<IEnumerable<Route>>($"Provider:{nameof(ProviderOneSearchService)}. Message:{e.Message}");
             }
         }
 
@@ -89,18 +90,18 @@ namespace Mixwel.Providers.ProviderOneSearch
             };
         }
 
-        private static SearchResponse ToSearchResponse(IEnumerable<ProviderOneRoute> apiRoutes) 
+        private static IEnumerable<Route> ToRoutes(IEnumerable<ProviderOneRoute> apiRoutes) 
         {
             var routes = apiRoutes
-                .Select(x => Domain.Models.Route.Create(Guid.NewGuid(),
-                    x.From,
+                .Select(x => Route.Create(x.From,
                     x.To,
                     x.DateFrom,
                     x.DateTo,
                     x.Price,
                     x.TimeLimit
                 ));
-            return SearchResponse.Create(routes);
+
+            return routes;
         }
     }
 }

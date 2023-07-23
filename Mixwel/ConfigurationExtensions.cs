@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Net.Http.Headers;
 using Mixwel.Domain;
 using Mixwel.Domain.Interfaces;
+using Mixwel.Infrastructure;
 using Mixwel.Providers.ProviderOneSearch;
 using Mixwel.Providers.ProviderTwoSearch;
 using Polly;
@@ -20,16 +21,16 @@ namespace Mixwel
         {
             services.AddScoped<ProviderOneSearchService>();
             services.AddScoped<ProviderTwoSearchService>();
-            services.AddScoped<IAggregateSearchService, AggregateSearchService>(x =>
-                new AggregateSearchService(
+            services.AddScoped<ICacheService, RedisService>();
+            services.AddScoped<ISearchRoutesService, SearchRoutesService>(x =>
+                new SearchRoutesService(
                     new ISearchService[]
                     {
                         x.GetService<ProviderOneSearchService>()!,
                         x.GetService<ProviderTwoSearchService>()!,
                     },
-                    x.GetService<IDatabase>()!,
-                    x.GetService<StackExchange.Redis.IServer>()!,
-                    x.GetService<ILogger<AggregateSearchService>>()!));
+                    x.GetService<ICacheService>()!,
+                    x.GetService<ILogger<SearchRoutesService>>()!));
 
             return services;
         }
@@ -45,22 +46,14 @@ namespace Mixwel
 
         public static IServiceCollection RegisterRedis(this IServiceCollection services, Func<string?> configureConnection) 
         {
+            var connectionStrig = configureConnection?.Invoke() ?? string.Empty;
+            ArgumentException.ThrowIfNullOrEmpty(connectionStrig);
             IConnectionMultiplexer multiplexer = ConnectionMultiplexer
-                    .Connect(configureConnection?.Invoke() ?? string.Empty);
-
-            services.AddScoped<IDatabase>(cfg =>
-            {
-                return multiplexer.GetDatabase();
-            });
-
-            services.AddScoped<StackExchange.Redis.IServer>(cfg => 
-            {
-                //get default server
-                StackExchange.Redis.IServer? defaultServer = multiplexer.GetServers()
-                        .FirstOrDefault();
-
-                return defaultServer!;
-            });
+                    .Connect(connectionStrig);
+            services.AddScoped<IDatabase>(cfg => multiplexer.GetDatabase());
+            //default server
+            services.AddScoped<StackExchange.Redis.IServer>(cfg =>
+                multiplexer.GetServers().Single());
 
             return services;
         }

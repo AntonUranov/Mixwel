@@ -9,8 +9,8 @@ namespace Mixwel.Controllers
     [Route("[controller]")]
     public class RoutesController : ControllerBase
     {
-        private readonly IAggregateSearchService _searchService;
-        public RoutesController(IAggregateSearchService searchService)
+        private readonly ISearchRoutesService _searchService;
+        public RoutesController(ISearchRoutesService searchService)
         {
             _searchService = searchService;
         }

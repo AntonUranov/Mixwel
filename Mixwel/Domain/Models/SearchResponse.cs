@@ -1,12 +1,17 @@
-﻿namespace Mixwel.Domain.Models
+﻿using System.Collections.Immutable;
+
+namespace Mixwel.Domain.Models
 {
-    public record SearchResponse
+    public class SearchResponse
     {
         private SearchResponse() { }
 
+        private static readonly SearchResponse Empty =
+            new SearchResponse() { RoutesWithId = ImmutableDictionary<Guid, Route>.Empty };
+
         // Mandatory
         // Routes
-        public IEnumerable<Route> Routes { get; init; }
+        public IImmutableDictionary<Guid, Route> RoutesWithId { get; init; }
 
         // Mandatory
         // The cheapest route
@@ -24,41 +29,21 @@
         // The longest route
         public int MaxMinutesRoute { get; init; }
 
-        private static readonly SearchResponse Empty = new SearchResponse() { Routes = Enumerable.Empty<Route>() };
 
-        public static SearchResponse Create(IEnumerable<Route> routes)
+        public static SearchResponse Create(IImmutableDictionary<Guid, Route> routes)
         {
-            var items = routes ?? Enumerable.Empty<Route>();
-            if(!items.Any())
+            if(routes?.Any() != true)
                 return Empty;
 
             return new SearchResponse
             {
-                Routes = items,
-                MinPrice = items.Min(x=>x.Price),
-                MaxPrice = items.Max(x => x.Price),
-                MaxMinutesRoute = items.Max(x => (int)(x.DestinationDateTime - x.OriginDateTime).TotalMinutes),
-                MinMinutesRoute = items.Min(x => (int)(x.DestinationDateTime - x.OriginDateTime).TotalMinutes)
-            };
-        }
-
-        public SearchResponse Join(SearchResponse? other) 
-        {
-            if (other is null) return this;
-
-            IEnumerable<Route> totalRoutes = Routes.Concat(other.Routes);
-            decimal totalMinPrice = Math.Min(MinPrice, other.MinPrice);
-            decimal totalMaxPrice = Math.Max(MaxPrice, other.MaxPrice);
-            int totalMaxMinutesRoute = Math.Max(MaxMinutesRoute, other.MaxMinutesRoute);
-            int totalMinMinutesRoute = Math.Min(MinMinutesRoute, other.MinMinutesRoute);
-
-            return new SearchResponse
-            {
-                Routes = totalRoutes,
-                MinPrice = totalMinPrice,
-                MaxPrice = totalMaxPrice,
-                MaxMinutesRoute = totalMaxMinutesRoute,
-                MinMinutesRoute = totalMinMinutesRoute
+                RoutesWithId = routes,
+                MinPrice = routes.Min(x=>x.Value.Price),
+                MaxPrice = routes.Max(x => x.Value.Price),
+                MaxMinutesRoute =
+                    routes.Max(x => (int)(x.Value.DestinationDateTime - x.Value.OriginDateTime).TotalMinutes),
+                MinMinutesRoute =
+                    routes.Min(x => (int)(x.Value.DestinationDateTime - x.Value.OriginDateTime).TotalMinutes)
             };
         }
     }

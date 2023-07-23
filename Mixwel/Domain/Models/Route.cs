@@ -1,12 +1,8 @@
 ﻿namespace Mixwel.Domain.Models
 {
-    public class Route
+    public record Route
     {
-        public Route() { }
-
-        // Mandatory
-        // Identifier of the whole route
-        public Guid Id { get; init; }
+        private Route() { }
 
         // Mandatory
         // Start point of route
@@ -32,24 +28,25 @@
         // Timelimit. After it expires, route became not actual
         public DateTime TimeLimit { get; init; }
 
-        public static Route Create(Guid id, string origin, string destination,
+        public static Route Create(string origin, string destination,
             DateTime originDateTime,
             DateTime destinationDateTime,
             decimal price,
             DateTime timeLimit)
         {
-            if (id == Guid.Empty)
-                throw new ArgumentException("Identifier shouldn't be empty.");
-
             ArgumentException.ThrowIfNullOrEmpty(origin);
             ArgumentException.ThrowIfNullOrEmpty(destination);
 
             if (price < 0)
                 throw new ArgumentException("Price should be non-negative value.");
+            if (originDateTime >= destinationDateTime) 
+            {
+                throw new ArgumentException(
+                    $"{nameof(OriginDateTime)} should be less than {nameof(DestinationDateTime)}.");
+            }
 
             return new Route
             {
-                Id = id,
                 Origin = origin,
                 Destination = destination,
                 OriginDateTime = originDateTime,
