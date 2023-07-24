@@ -1,4 +1,6 @@
-﻿namespace Mixwel.Models
+﻿using Route = Mixwel.Domain.Models.Route;
+
+namespace Mixwel.Models
 {
     public class SearchRequestModel
     {
@@ -41,7 +43,7 @@
     {
         // Mandatory
         // Array of routes
-        public Route[] Routes { get; set; } = Array.Empty<Route>();
+        public IEnumerable<RouteModel>  Routes { get; set; } = Enumerable.Empty<RouteModel>();
 
         // Mandatory
         // The cheapest route
