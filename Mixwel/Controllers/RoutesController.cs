@@ -2,6 +2,7 @@
 using Mixwel.Domain.Interfaces;
 using Mixwel.Domain.Models;
 using Mixwel.Models;
+using Route = Mixwel.Domain.Models.Route;
 
 namespace Mixwel.Controllers
 {
@@ -32,7 +33,7 @@ namespace Mixwel.Controllers
             if (result.IsFailure)
                 return Problem();
 
-            return Ok(result.Value);
+            return Ok(ToSearchResponseModel(result.Value!));
         }
 
         [HttpGet("{id}")]
@@ -60,6 +61,32 @@ namespace Mixwel.Controllers
             return SearchFilters.Create(filters.DestinationDateTime, filters.MaxPrice,
                 filters.MinTimeLimit, filters.OnlyCached == true);
 
+        }
+
+        private static SearchResponseModel ToSearchResponseModel(SearchResponse response) 
+        {
+            return new SearchResponseModel
+            {
+                MaxMinutesRoute = response.MaxMinutesRoute,
+                MinMinutesRoute = response.MinMinutesRoute,
+                MaxPrice = response.MaxPrice,
+                MinPrice = response.MinPrice,
+                Routes = response.RoutesWithId.Select(x => ToRouteModel(x.Value, x.Key))
+            };
+        }
+
+        private static RouteModel ToRouteModel(Route route, Guid routeId) 
+        {
+            return new RouteModel
+            {
+                Id = routeId,
+                Origin = route.Origin,
+                Destination = route.Destination,
+                OriginDateTime = route.OriginDateTime,
+                DestinationDateTime = route.DestinationDateTime,
+                Price = route.Price,
+                TimeLimit = route.TimeLimit
+            };
         }
     }
 }
