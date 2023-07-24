@@ -12,8 +12,7 @@ namespace Mixwel.Providers.ProviderOneSearch
     {
         private const string SearchPath = "/api/v1/search";
         private const string PingPath = "/api/v1/ping";
-        //private static Uri BaseAddress = new Uri("http://provider-one/");
-        private static Uri BaseAddress = new Uri("http://localhost:5089/");
+        private static Uri BaseAddress = new Uri("http://provider-one/");
         
         private readonly HttpClient _httpClient;
 
