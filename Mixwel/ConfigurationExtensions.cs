@@ -63,7 +63,7 @@ namespace Mixwel
             return services;
         }
 
-        public static async Task ConfigureRedis(this WebApplication app) 
+        public static async Task SetupRedis(this WebApplication app) 
         {
             var cache = app.Services.GetService<ICacheService>();
             var initResult =  await cache.Initialize();

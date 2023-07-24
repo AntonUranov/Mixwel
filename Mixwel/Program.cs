@@ -47,6 +47,6 @@ app.MapHealthChecks("/api/ping",
         ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
     });
 
-await app.ConfigureRedis();
+await app.SetupRedis();
 
 app.Run();
