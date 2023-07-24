@@ -7,7 +7,7 @@ namespace Mixwel.Infrastructure
     public interface ICacheService
     {
         Task<Result> Initialize();
-        Task<Route?> GetById(Guid id);
+        Task<KeyValuePair<Guid, Route>?> GetById(Guid id);
         Task<Guid> UpdateCacheAndGetRouteId(Route route);
         Task<IImmutableDictionary<Guid, Route>> GetFromCache(SearchRequest searchRequest);
     }

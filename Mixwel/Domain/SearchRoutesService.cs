@@ -84,6 +84,6 @@ namespace Mixwel.Domain
             return Result.Ok(response);            
         }
 
-        public Task<Route?> GetById(Guid id) => _cache.GetById(id);
+        public Task<KeyValuePair<Guid, Route>?> GetById(Guid id) => _cache.GetById(id);
     }
 }

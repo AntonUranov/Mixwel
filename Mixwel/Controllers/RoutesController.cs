@@ -2,6 +2,7 @@
 using Mixwel.Domain.Interfaces;
 using Mixwel.Domain.Models;
 using Mixwel.Models;
+using System.Net;
 using Route = Mixwel.Domain.Models.Route;
 
 namespace Mixwel.Controllers
@@ -18,6 +19,7 @@ namespace Mixwel.Controllers
         }
 
         [HttpPost]
+        [ProducesResponseType(typeof(SearchResponseModel), (int)HttpStatusCode.OK)]
         public async Task<ActionResult> Search([FromBody] SearchRequestModel request,
             CancellationToken cancellationToken)
         {
@@ -38,13 +40,14 @@ namespace Mixwel.Controllers
         }
 
         [HttpGet("{id}")]
+        [ProducesResponseType(typeof(RouteModel), (int)HttpStatusCode.OK)]
         public async Task<ActionResult> GetById(Guid id)
         {
             var result = await _searchService.GetById(id);
-            if (result is null)
+            if (!result.HasValue)
                 return NotFound();
-
-            return Ok(result);
+            var routeById = result.Value;
+            return Ok(ToRouteModel(routeById.Value, routeById.Key));
         }
 
         private static Result<SearchRequest> MapRequest(SearchRequestModel request)

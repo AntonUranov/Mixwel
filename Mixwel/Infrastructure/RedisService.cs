@@ -69,7 +69,7 @@ namespace Mixwel.Infrastructure
         }
 
 
-        public async Task<Route?> GetById(Guid id)
+        public async Task<KeyValuePair<Guid, Route>?> GetById(Guid id)
         {
             HashEntry[] entries = await _database.HashGetAllAsync(GetKey(id));
             if (!entries.Any()) 
@@ -81,7 +81,8 @@ namespace Mixwel.Infrastructure
                 routeBuilder.SetData(item.Name, RedisResult.Create(item.Value));
             }
 
-            return routeBuilder.Build();
+            Route route =  routeBuilder.Build();
+            return new KeyValuePair<Guid, Route>(id, route);
         }
 
         public async Task<IImmutableDictionary<Guid, Route>> GetFromCache(SearchRequest searchRequest) 
