@@ -7,7 +7,8 @@ using Route = Mixwel.Domain.Models.Route;
 namespace Mixwel.Controllers
 {
     [ApiController]
-    [Route("[controller]")]
+    [ApiVersion("1.0")]
+    [Route("api/v{version:apiVersion}/[controller]")]
     public class RoutesController : ControllerBase
     {
         private readonly ISearchRoutesService _searchService;
