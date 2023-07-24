@@ -36,41 +36,18 @@ namespace Mixwel.Domain
             return results.All(x => x);
         }
 
-        //private async Task<Result<SearchResponse>> SearchByCache(SearchRequest request, CancellationToken cancellationToken) 
-        //{
-            
-
-        //    await foreach(var key in _server.KeysAsync(pattern: $"{_prefix}*"))
-        //    {
-        //        if()
-        //    }
-
-        //    return Result.Fail<SearchResponse>("test");
-        //}
-
-        //private async IEnumerable<Route> GetRoutes() 
-        //{
-        //    await foreach (var key in _server.KeysAsync(pattern: $"{_prefix}*"))
-        //    {
-        //        var json = await _cache.StringGetAsync(key);
-        //        var value = JsonSerializer.Deserialize<Route>((string)json);
-        //        if 
-
-        //    }
-        //}
-
         public async Task<Result<SearchResponse>> SearchAsync(SearchRequest request, CancellationToken cancellationToken)
         {
-            //if (request.Filters?.OnlyCached == true) 
-            //{
-            //    return await SearchByCache(request, cancellationToken);
-            //}
+            if (request.Filters?.OnlyCached == true)
+            {
+                var cached =  await _cache.GetFromCache(request);
+                return Result.Ok(SearchResponse.Create(cached));
+            }
 
             var tasks = _services
                 .Select(x => x.SearchAsync(request, cancellationToken));
             Result<IEnumerable<Route>>[] results = await Task.WhenAll(tasks);
 
-            
             var failedResults = results.Where(x => x.IsFailure);
             if (failedResults.Any())
             {
@@ -84,7 +61,6 @@ namespace Mixwel.Domain
                     return Result.Fail<SearchResponse>(
                         errorMessage);
                 }
-                    
             }
 
             var successResults = results.Where(x => x.IsSuccess)

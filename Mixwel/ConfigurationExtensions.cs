@@ -21,16 +21,16 @@ namespace Mixwel
         {
             services.AddScoped<ProviderOneSearchService>();
             services.AddScoped<ProviderTwoSearchService>();
-            services.AddScoped<ICacheService, RedisService>();
+            services.AddTransient<ICacheService, RedisService>();
             services.AddScoped<ISearchRoutesService, SearchRoutesService>(x =>
                 new SearchRoutesService(
                     new ISearchService[]
                     {
-                        x.GetService<ProviderOneSearchService>()!,
-                        x.GetService<ProviderTwoSearchService>()!,
+                        x.GetRequiredService<ProviderOneSearchService>()!,
+                        x.GetRequiredService<ProviderTwoSearchService>()!,
                     },
-                    x.GetService<ICacheService>()!,
-                    x.GetService<ILogger<SearchRoutesService>>()!));
+                    x.GetRequiredService<ICacheService>()!,
+                    x.GetRequiredService<ILogger<SearchRoutesService>>()!));
 
             return services;
         }
@@ -44,18 +44,33 @@ namespace Mixwel
             return services;
         }
 
-        public static IServiceCollection RegisterRedis(this IServiceCollection services, Func<string?> configureConnection) 
+        public static IServiceCollection ConfigureRedis(this IServiceCollection services,
+            Func<string?> configureConnection) 
         {
             var connectionStrig = configureConnection?.Invoke() ?? string.Empty;
             ArgumentException.ThrowIfNullOrEmpty(connectionStrig);
+
             IConnectionMultiplexer multiplexer = ConnectionMultiplexer
                     .Connect(connectionStrig);
-            services.AddScoped<IDatabase>(cfg => multiplexer.GetDatabase());
+            services.AddTransient<IDatabase>(cfg => multiplexer.GetDatabase());
             //default server
-            services.AddScoped<StackExchange.Redis.IServer>(cfg =>
+            services.AddTransient<StackExchange.Redis.IServer>(cfg =>
                 multiplexer.GetServers().Single());
 
+
+
             return services;
+        }
+
+        public static async Task ConfigureRedis(this WebApplication app) 
+        {
+            var cache = app.Services.GetService<ICacheService>();
+            var initResult =  await cache.Initialize();
+            if (initResult.IsFailure) 
+            {
+                throw new ApplicationException(
+                    $"Cache initialization is failed. Exception: {initResult.Error}");
+            }
         }
 
     }

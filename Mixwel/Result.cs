@@ -8,6 +8,7 @@
 
         public static Result<T> Fail<T>(string message) => new() { IsSuccess = false, Error = message, Value = default };
         public static Result<T> Ok<T>(T value) => new() { Value = value, IsSuccess = true, Error = string.Empty };
+        public static Result Ok() => new() { IsSuccess = true, Error = string.Empty };
     }
 
     public readonly struct Result<T>

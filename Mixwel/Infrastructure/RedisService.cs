@@ -1,6 +1,9 @@
-﻿using StackExchange.Redis;
+﻿using Microsoft.AspNetCore.Routing;
+using Mixwel.Domain.Models;
+using StackExchange.Redis;
+using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Globalization;
-using System.Text.Json;
 using Route = Mixwel.Domain.Models.Route;
 
 namespace Mixwel.Infrastructure
@@ -8,18 +11,40 @@ namespace Mixwel.Infrastructure
     public class RedisService: ICacheService
     {
         private const string keyPrefix = "route:";
-        private const string hashName = "hash";
+        private const string routesIndexName = "idx:route";
+        private const string routeIndex = $"{routesIndexName} ON Hash PREFIX 1 \"route:\" SCHEMA Origin TEXT Destination TEXT OriginDateTime NUMERIC";
+        //todo: read from config options
+        private readonly TimeSpan _expirationPeriod = TimeSpan.FromMinutes(10);
 
         private readonly IDatabase _database;
 
         public RedisService(IDatabase database)
         {
+            ArgumentNullException.ThrowIfNull(database);
             _database = database;
+        }
+
+        public async Task<Result> Initialize()
+        {
+            RedisResult flushResult = await _database.ExecuteAsync("FLUSHALL");
+            if (!IsOk(flushResult)) 
+                Result.Fail<bool>("Failed FLUSHALL command");
+            
+            string[] args = routeIndex.Replace("\"", "")
+                .Split(" ")
+                .Select(x => x.Trim())
+                .ToArray();
+
+            RedisResult indexCreateResult = await _database.ExecuteAsync("FT.CREATE", args);
+            if(!IsOk(indexCreateResult))
+                Result.Fail<bool>($"Failed FT.CREATE command. Args:{routeIndex}");
+
+            return Result.Ok();
         }
 
         public async Task<Guid> UpdateCacheAndGetRouteId(Route route)
         {
-            Guid? cachedRouteId = GetRouteIdFromCache(route);
+            Guid? cachedRouteId = await GetRouteIdFromCache(route);
             if (cachedRouteId.HasValue)
             {
                 return cachedRouteId.Value;
@@ -29,46 +54,116 @@ namespace Mixwel.Infrastructure
             string key = $"{keyPrefix}{newRouteId}";
             await _database.HashSetAsync(key, new HashEntry[]
             {
-                new HashEntry(nameof(route.Origin), route.Origin),
-                new HashEntry(nameof(route.Destination), route.Destination),
-                new HashEntry(nameof(route.OriginDateTime), route.OriginDateTime.Ticks),
-                new HashEntry(nameof(route.DestinationDateTime), route.DestinationDateTime.Ticks),
-                new HashEntry(nameof(route.Price), route.Price.ToString(CultureInfo.InvariantCulture)),
-                new HashEntry(nameof(route.TimeLimit), route.TimeLimit.Ticks),
-                new HashEntry(hashName, route.GetHashCode())
+                new HashEntry(RoutePropertyNames.Origin, route.Origin),
+                new HashEntry(RoutePropertyNames.Destination, route.Destination),
+                new HashEntry(RoutePropertyNames.OriginDateTime, route.OriginDateTime.Ticks),
+                new HashEntry(RoutePropertyNames.DestinationDateTime, route.DestinationDateTime.Ticks),
+                new HashEntry(RoutePropertyNames.Price, route.Price.ToString(CultureInfo.InvariantCulture)),
+                new HashEntry(RoutePropertyNames.TimeLimit, route.TimeLimit.Ticks),
             });
 
-            //await _cache.KeyExpireAsync(key, TimeSpan.FromMinutes(10));
+            
+            await _database.KeyExpireAsync(key, _expirationPeriod);
 
             return newRouteId;
         }
 
-        
 
         public async Task<Route?> GetById(Guid id)
         {
-            //todo!!!!!!!!!!!!!!!!!!!
-            Route? result = default;
-            RedisValue item = await _database.StringGetAsync(GetKey(id));
-            if (item.HasValue)
+            HashEntry[] entries = await _database.HashGetAllAsync(GetKey(id));
+            if (!entries.Any()) 
+                return default;
+
+            RouteBuilder routeBuilder = new RouteBuilder();
+            foreach (var item in entries) 
             {
-                result = JsonSerializer.Deserialize<Route?>((string)item!);
+                routeBuilder.SetData(item.Name, RedisResult.Create(item.Value));
             }
 
-            return result;
+            return routeBuilder.Build();
         }
 
-        private Guid? GetRouteIdFromCache(Route route)
+        public async Task<IImmutableDictionary<Guid, Route>> GetFromCache(SearchRequest searchRequest) 
         {
+            object[] args = new object[]
+            {
+                routesIndexName,
+                $"@Origin:{searchRequest.Origin} @Destination:{searchRequest.Destination} @OriginDateTime:[{searchRequest.OriginDateTime.Ticks} inf]"
+            };
+
+            RedisResult redisResult = await _database.ExecuteAsync("FT.SEARCH", args);
+
+            SearchFilters filters = searchRequest.Filters!;
+            Func<Route, bool> filter = x =>
+                filters.IsAppropriateDestinationTime(x.DestinationDateTime)
+                && filters.IsSuitableTimeLimit(x.TimeLimit)
+                && filters.IsAffordablePrice(x.Price);
+
+            var routes = GetRoutesFromRedisResult(redisResult);
+
+            return routes;
+        }
+
+        private async Task<Guid?> GetRouteIdFromCache(Route route)
+        {
+            object[] args = new object[]
+            {
+                routesIndexName,
+                $"@Origin:{route.Origin} @Destination:{route.Destination} @OriginDateTime:{route.OriginDateTime.Ticks}"
+
+            };
+            RedisResult redisResult = await _database.ExecuteAsync("FT.SEARCH", args);
+
+            var routes = GetRoutesFromRedisResult(redisResult);
+            if (routes.Any()) 
+            {
+                return routes.FirstOrDefault(x => x.Value == route).Key;
+            }
+
             return default;
         }
 
-        private static string GetKey(Guid id) => $"{keyPrefix}{id}";
-    }
+        private static IImmutableDictionary<Guid, Route> GetRoutesFromRedisResult(RedisResult redisResult, 
+            Func<Route, bool> IsAppropriateRoute = null)
+        {
+            var dictionaryBuilder = ImmutableDictionary.CreateBuilder<Guid, Route>();
+            if (redisResult.IsNull || redisResult.Type != ResultType.MultiBulk)
+                return dictionaryBuilder.ToImmutable();
 
-    public interface ICacheService 
-    {
-        Task<Route?> GetById(Guid id);
-        Task<Guid> UpdateCacheAndGetRouteId(Route route);
+            var ar = (RedisResult[])redisResult!;
+            int pairsCount = (int)ar[0];//pairs
+            for (int i = 1; i < pairsCount * 2; i += 2)
+            {
+                string redisKey = (string)ar[i];
+                var items = (RedisResult[])ar[i + 1];
+
+                Guid id = Guid.Parse(redisKey.AsSpan(keyPrefix.Length));
+
+                RouteBuilder routeBuilder = new RouteBuilder();
+                
+                for (int j = 0; j < items.Length; j += 2)
+                {
+                    var key = items[j];
+                    var val = items[j + 1];
+                    routeBuilder.SetData((string)key, val);
+                }
+
+                var route = routeBuilder.Build();
+
+                if (IsAppropriateRoute?.Invoke(route) == false)
+                    continue;
+
+                dictionaryBuilder.Add(id, route);
+            }
+
+
+            return dictionaryBuilder.ToImmutable();
+        }
+
+        private static string GetKey(Guid id) => $"{keyPrefix}{id}";
+
+        private static bool IsOk(RedisResult? redisResult) => (string)redisResult == "OK";
+
     }
 }

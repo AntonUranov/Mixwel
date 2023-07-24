@@ -6,10 +6,9 @@ builder.Logging.AddConsole();
 
 builder.Services.AddRouting(options => options.LowercaseUrls = true);
 
-
 // Add services to the container.
 builder.Services.RegisterDependencies();
-builder.Services.RegisterRedis(() => builder.Configuration.GetConnectionString("Redis"));
+builder.Services.ConfigureRedis(() => builder.Configuration.GetConnectionString("Redis"));
 
 builder.Services.ConfigureHttpClients();
 
@@ -34,5 +33,7 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 
 app.MapControllers();
+
+await app.ConfigureRedis();
 
 app.Run();
