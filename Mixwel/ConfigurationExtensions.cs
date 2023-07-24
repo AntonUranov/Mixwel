@@ -52,6 +52,7 @@ namespace Mixwel
 
             IConnectionMultiplexer multiplexer = ConnectionMultiplexer
                     .Connect(connectionStrig);
+            services.AddSingleton<IConnectionMultiplexer>(cfg => multiplexer);
             services.AddTransient<IDatabase>(cfg => multiplexer.GetDatabase());
             //default server
             services.AddTransient<StackExchange.Redis.IServer>(cfg =>

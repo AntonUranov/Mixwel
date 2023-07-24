@@ -11,12 +11,13 @@ namespace Mixwel.Infrastructure
     public class RedisService: ICacheService
     {
         private const string keyPrefix = "route:";
-        private const string routesIndexName = "idx:route";
-        private const string routeIndex = $"{routesIndexName} ON Hash PREFIX 1 \"route:\" SCHEMA Origin TEXT Destination TEXT OriginDateTime NUMERIC";
+        private const string routeIndex = $"{RoutesIndexName} ON Hash PREFIX 1 \"route:\" SCHEMA Origin TEXT Destination TEXT OriginDateTime NUMERIC";
         //todo: read from config options
         private readonly TimeSpan _expirationPeriod = TimeSpan.FromMinutes(10);
 
         private readonly IDatabase _database;
+
+        public const string RoutesIndexName = "idx:route";
 
         public RedisService(IDatabase database)
         {
@@ -47,6 +48,7 @@ namespace Mixwel.Infrastructure
             Guid? cachedRouteId = await GetRouteIdFromCache(route);
             if (cachedRouteId.HasValue)
             {
+                SetExpiration(GetKey(cachedRouteId.Value));
                 return cachedRouteId.Value;
             }
 
@@ -61,13 +63,10 @@ namespace Mixwel.Infrastructure
                 new HashEntry(RoutePropertyNames.Price, route.Price.ToString(CultureInfo.InvariantCulture)),
                 new HashEntry(RoutePropertyNames.TimeLimit, route.TimeLimit.Ticks),
             });
-
-            
-            await _database.KeyExpireAsync(key, _expirationPeriod);
+            await SetExpiration(key);
 
             return newRouteId;
         }
-
 
         public async Task<KeyValuePair<Guid, Route>?> GetById(Guid id)
         {
@@ -89,7 +88,7 @@ namespace Mixwel.Infrastructure
         {
             object[] args = new object[]
             {
-                routesIndexName,
+                RoutesIndexName,
                 $"@Origin:{searchRequest.Origin} @Destination:{searchRequest.Destination} @OriginDateTime:[{searchRequest.OriginDateTime.Ticks} inf]"
             };
 
@@ -110,7 +109,7 @@ namespace Mixwel.Infrastructure
         {
             object[] args = new object[]
             {
-                routesIndexName,
+                RoutesIndexName,
                 $"@Origin:{route.Origin} @Destination:{route.Destination} @OriginDateTime:[{route.OriginDateTime.Ticks} {route.OriginDateTime.Ticks}]"
 
             };
@@ -160,6 +159,11 @@ namespace Mixwel.Infrastructure
 
 
             return dictionaryBuilder.ToImmutable();
+        }
+
+        private async Task SetExpiration(string key)
+        {
+            await _database.KeyExpireAsync(key, _expirationPeriod);
         }
 
         private static string GetKey(Guid id) => $"{keyPrefix}{id}";

@@ -50,6 +50,7 @@ namespace Mixwel.Controllers
             return Ok(ToRouteModel(routeById.Value, routeById.Key));
         }
 
+        //AutoMapper could be used here
         private static Result<SearchRequest> MapRequest(SearchRequestModel request)
         {
             SearchFilters? filters = MapFilters(request.Filters);
