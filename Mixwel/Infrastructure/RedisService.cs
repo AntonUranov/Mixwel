@@ -110,7 +110,7 @@ namespace Mixwel.Infrastructure
             object[] args = new object[]
             {
                 routesIndexName,
-                $"@Origin:{route.Origin} @Destination:{route.Destination} @OriginDateTime:{route.OriginDateTime.Ticks}"
+                $"@Origin:{route.Origin} @Destination:{route.Destination} @OriginDateTime:[{route.OriginDateTime.Ticks} {route.OriginDateTime.Ticks}]"
 
             };
             RedisResult redisResult = await _database.ExecuteAsync("FT.SEARCH", args);
